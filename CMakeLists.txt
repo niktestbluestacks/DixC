@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 project(DIXC CXX C)
-
+set(LLVM_DIR "/usr/lib/llvm-21/lib/cmake/llvm")
 set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 

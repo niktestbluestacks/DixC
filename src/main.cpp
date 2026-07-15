@@ -1,38 +1,37 @@
-#include <Lexer.hpp>
+// dix
+#include <Parser.hpp>
 
-// #include <exception>
-// #include <fstream>
-// #include <sstream>
-// #include <string>
-// #include <string_view>
-// #include <stdexcept>
-// #include <iostream>
+// std
+#include <iostream>
+#include <fstream>
+#include <sstream>
 
-// std::string readFile(const std::string& filename) {
-//     std::ifstream file(filename);
-//     if (!file.is_open()) {
-//         throw std::runtime_error("Could not open file: " + filename);
-//     }
-    
-//     std::stringstream buffer;
-//     buffer << file.rdbuf();
-//     return buffer.str();
-// }
+int main(/*int argc, char* argv[]*/) {
+    int argc = 2;
+    char* argv[] = {nullptr, "../../src/test.c"};
+    if (argc != 2) {
+        std::cerr << "Usage: " << argv[0] << "<source.c>" << std::endl;
+        return 1;
+    }
 
-// int main() {
-// //     std::string source = readFile("../../src/test.c");
-    
-// //    std::string_view source_view = source; 
-    
-// //     dix::Lexer lexer(source_view);
-// //     try {
-// //         lexer.tokenizeAll();
-// //     } catch (const std::exception& e) {
-// //         std::cout << e.what();
-// //     }
-// //     std::cout << "Success!";
-    
-//     return 0;
-// }
+    std::ifstream file(argv[1]);
+    if (!file.is_open()) {
+        std::cerr << "Could not open file: " << argv[1] << std::endl;
+        return 1;
+    }
 
-int main() {}
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    std::string source = buffer.str();
+
+    try {
+        dix::Parser parser(source);
+        auto ast = parser.parseProgram();
+        std::cout << "  Parsing successful!\n";
+        std::cout << "  Top-level declarations: " 
+                  << dynamic_cast<dix::BlockStatement*>(ast.get())->statements.size() << "\n";
+    } catch (const std::exception& e) {
+        std::cerr << "  Parse error: " << e.what() << "\n";
+        return 1;
+    }
+}
