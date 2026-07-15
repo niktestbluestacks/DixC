@@ -1,5 +1,6 @@
 // dix
 #include <Parser.hpp>
+#include <SemanticAnalyzer.hpp>
 
 // std
 #include <iostream>
@@ -23,15 +24,24 @@ int main(/*int argc, char* argv[]*/) {
     std::stringstream buffer;
     buffer << file.rdbuf();
     std::string source = buffer.str();
-
     try {
-        dix::Parser parser(source);
+        dix::Parser parser{source};
         auto ast = parser.parseProgram();
-        std::cout << "  Parsing successful!\n";
-        std::cout << "  Top-level declarations: " 
-                  << dynamic_cast<dix::BlockStatement*>(ast.get())->statements.size() << "\n";
+        
+        dix::SemanticAnalyzer analyzer;
+        auto errors = analyzer.analyze(ast.get());
+        
+        if (!errors.empty()) {
+            for (const auto& err : errors) {
+                std::cerr << argv[1] << ":" << err.line << ":" << err.column 
+                          << ": error: " << err.message << "\n";
+            }
+            return 1;
+        }
+        
+        std::cout << "✓ No semantic errors!\n";
     } catch (const std::exception& e) {
-        std::cerr << "  Parse error: " << e.what() << "\n";
+        std::cerr << "Error: " << e.what() << "\n";
         return 1;
     }
 }

@@ -1,35 +1,21 @@
-int factorial(int n) {
-    if (n <= 1) {
-        return 1;
-    }
-    return n * factorial(n - 1);
+int x = 5;
+int x = 10;  // ✗ Redefinition of 'x'
+
+void foo() {
+    y = 5;     // ✗ Use of undeclared identifier 'y'
 }
 
-int main() {
-    int x = 5;
-    int result = factorial(x);
-    
-    int arr[10];
-    arr[0] = 42;
-    arr[1] = arr[0] + 1;
-    
-    int i = 0;
-    while (i < 10) {
-        arr[i] = i * i;
-        i++;
-    }
-    int j;
-    for (j = 0; j < 5; j++) {
-        if (arr[j] > 10) {
-            break;
-        }
-    }
-
-    for (const int restrict * j = 0; ;) {
-        break;
-    }
-    
-    int y = x > 0 ? x : -x;
-    
-    return 0;
+int bar(int a, int a) {  // ✗ Duplicate parameter name 'a'
+    return a;
 }
+
+int baz() {
+    return baz;  // ✓ Functions are symbols too
+}
+
+int baz() {      // ✗ Redefinition of function 'baz'
+    return 1;
+}
+
+int baz();       // ✓ Forward declaration is OK
+int baz();       // ✓ Multiple declarations OK

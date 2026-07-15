@@ -6,6 +6,7 @@
 
 // std
 #include <vector>
+#include <memory>
 
 namespace dix {
 
@@ -119,6 +120,44 @@ struct FuncDeclaration : Statement {
     std::unique_ptr<Statement> body;
     AttributeList attributes;
 };
+
+inline std::unique_ptr<Type> cloneType(const Type* type) {
+    if (!type) return nullptr;
+    
+    if (auto* basic = dynamic_cast<const BasicType*>(type)) {
+        auto copy = std::make_unique<BasicType>();
+        copy->kind = basic->kind;
+        copy->is_unsigned = basic->is_unsigned;
+        copy->is_const = basic->is_const;
+        copy->is_volatile = basic->is_volatile;
+        copy->is_restrict = basic->is_restrict;
+        copy->line = basic->line;
+        copy->column = basic->column;
+        return copy;
+    }
+    else if (auto* ptr = dynamic_cast<const PointerType*>(type)) {
+        auto copy = std::make_unique<PointerType>();
+        copy->base_type = cloneType(ptr->base_type.get());
+        copy->is_const = ptr->is_const;
+        copy->is_volatile = ptr->is_volatile;
+        copy->is_restrict = ptr->is_restrict;
+        copy->line = ptr->line;
+        copy->column = ptr->column;
+        return copy;
+    }
+    else if (auto* arr = dynamic_cast<const ArrayType*>(type)) {
+        auto copy = std::make_unique<ArrayType>();
+        copy->element_type = cloneType(arr->element_type.get());
+        if (arr->size) {
+            // TODO: deep clone expression
+        }
+        copy->line = arr->line;
+        copy->column = arr->column;
+        return copy;
+    }
+    
+    return nullptr;
+}
 }   // namespace dix
 
 #endif // AST_HPP
