@@ -28,12 +28,6 @@ struct ReturnStatement : Statement {
     std::unique_ptr<Expr> expr;
 };
 
-struct IfStatement : Statement {
-    std::unique_ptr<Expr> condition;
-    std::unique_ptr<Statement> thenBranch;
-    std::unique_ptr<Statement> elseBranch;
-};
-
 struct WhileStatement : Statement {
     std::unique_ptr<Expr> condition;
     std::unique_ptr<Statement> body;
@@ -50,12 +44,41 @@ struct BreakStatement : Statement {};
 
 struct ContinueStatement : Statement {};
 
+struct SwitchStatement : Statement {
+    std::unique_ptr<Expr> condition;
+    std::unique_ptr<Statement> body;
+};
+
 struct Attribute {
     std::string name;
-    std::vector<std::string> arguments;
+    std::string argument;
 };
 
 using AttributeList = std::vector<Attribute>;
+
+struct ElseStatement : Statement {
+    std::unique_ptr<Statement> body;
+    AttributeList attributes;
+};
+
+struct IfStatement : Statement {
+    std::unique_ptr<Expr> condition;
+    std::unique_ptr<Statement> thenBranch;
+    std::unique_ptr<ElseStatement> elseBranch;
+    AttributeList attributes;
+};
+
+
+struct CaseStatement : Statement {
+    std::unique_ptr<Expr> value;
+    std::unique_ptr<Statement> body;
+    AttributeList attributes;
+};
+
+struct DefaultStatement : Statement {
+    std::unique_ptr<Statement> body;
+    AttributeList attributes;
+};
 
 struct AttributeStatement : Statement {
     AttributeList attributes;
@@ -105,6 +128,7 @@ struct VarDeclaration : Statement {
     std::string name;
     std::unique_ptr<Expr> initializer;
     bool is_constexpr = false;
+    AttributeList attributes;
 };
 
 struct Parameter {
@@ -157,6 +181,84 @@ inline std::unique_ptr<Type> cloneType(const Type* type) {
     }
     
     return nullptr;
+}
+
+inline bool typesCompatible(const Type* from, const Type* to) {
+    if (!from || !to) return false;
+
+    if (auto* from_basic = dynamic_cast<const BasicType*>(from)) {
+        if (auto* to_basic = dynamic_cast<const BasicType*>(to)) {
+            return from_basic->kind == to_basic->kind &&
+                from_basic->is_unsigned == to_basic->is_unsigned;
+        }
+    }
+    
+    if (auto* from_ptr = dynamic_cast<const PointerType*>(from)) {
+        if (auto* to_ptr = dynamic_cast<const PointerType*>(to)) {
+            // void* can convert to any pointer
+            if (auto* to_base = dynamic_cast<const BasicType*>(to_ptr->base_type.get())) {
+                if (to_base->kind == BasicType::Kind::Void) return true;
+            }
+            if (auto* from_base = dynamic_cast<const BasicType*>(from_ptr->base_type.get())) {
+                if (from_base->kind == BasicType::Kind::Void) return true;
+            }
+            return typesCompatible(from_ptr->base_type.get(), to_ptr->base_type.get());
+        }
+    }
+
+    if (auto* from_arr = dynamic_cast<const ArrayType*>(from)) {
+        if (auto* to_ptr = dynamic_cast<const PointerType*>(to)) {
+            return typesCompatible(from_arr->element_type.get(), to_ptr->base_type.get());
+        }
+    }
+    
+    return false;
+}
+
+inline std::unique_ptr<Type> getCommonType(const Type* left, const Type* right) {
+    if (!left || !right) return nullptr;
+    
+    auto* left_basic = dynamic_cast<const BasicType*>(left);
+    auto* right_basic = dynamic_cast<const BasicType*>(right);
+    
+    if (left_basic && right_basic) {
+        if (left_basic->kind == BasicType::Kind::Double || 
+            right_basic->kind == BasicType::Kind::Double) {
+            auto result = std::make_unique<BasicType>();
+            result->kind = BasicType::Kind::Double;
+            return result;
+        }
+        
+        if (left_basic->kind == BasicType::Kind::Float || 
+            right_basic->kind == BasicType::Kind::Float) {
+            auto result = std::make_unique<BasicType>();
+            result->kind = BasicType::Kind::Float;
+            return result;
+        }
+        
+        auto result = std::make_unique<BasicType>();
+        result->kind = (left_basic->kind >= right_basic->kind) ? 
+                       left_basic->kind : right_basic->kind;
+        result->is_unsigned = left_basic->is_unsigned || right_basic->is_unsigned;
+        return result;
+    }
+    
+    if (dynamic_cast<const PointerType*>(left) && right_basic) {
+        return cloneType(left);
+    }
+    if (left_basic && dynamic_cast<const PointerType*>(right)) {
+        return cloneType(right);
+    }
+    
+    return nullptr;
+}
+
+inline bool isNumericType(const Type* type) {
+    return dynamic_cast<const BasicType*>(type) != nullptr;
+}
+
+inline bool isPointerType(const Type* type) {
+    return dynamic_cast<const PointerType*>(type) != nullptr;
 }
 }   // namespace dix
 

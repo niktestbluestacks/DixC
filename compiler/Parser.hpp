@@ -38,8 +38,11 @@ private:
     std::unique_ptr<Statement> parseBlockStatement();
     std::unique_ptr<Statement> parseReturnStatement();
     std::unique_ptr<Statement> parseIfStatement();
+    std::unique_ptr<Statement> parseElseStatement();
     std::unique_ptr<Statement> parseWhileStatement();
     std::unique_ptr<Statement> parseForStatement();
+    std::unique_ptr<Statement> parseSwitchStatement();
+    std::unique_ptr<Statement> parseCaseOrDefaultLabel();
 
     // Declarations
     std::unique_ptr<Type> parseTypeSpecifier();

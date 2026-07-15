@@ -19,6 +19,7 @@ enum class SymbolKind {
     EnumConstant
 };
 
+
 struct Symbol {
     std::string name;
     SymbolKind kind;
@@ -30,6 +31,25 @@ struct Symbol {
     std::vector<std::unique_ptr<Type>> param_types;
     bool is_initialized = false;
     bool is_constexpr = false;
+
+    AttributeList attributes;
+
+    bool is_used = false;
+    int scope_depth = 0;
+
+    bool hasAttribute(const std::string& name) const {
+        for (const auto& attr : attributes) {
+            if (attr.name == name) return true;
+        }
+        return false;
+    }
+
+    std::string getAttributeArg(const std::string& name) const {
+        for (const auto& attr : attributes) {
+            if (attr.name == name) return attr.argument;
+        }
+        return "";
+    }
 };
 
 class Scope {
@@ -68,6 +88,9 @@ public:
 
     Scope* getParent() { return parent; }
     const std::string& getName() const { return name; }
+    const std::unordered_map<std::string, std::unique_ptr<Symbol>>& getSymbols() const {
+        return symbols;
+    }
 };
 }   // namespace dix
 #endif // SEMANTIC_HPP

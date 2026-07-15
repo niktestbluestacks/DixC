@@ -1,21 +1,29 @@
-int x = 5;
-int x = 10;  // ✗ Redefinition of 'x'
-
-void foo() {
-    y = 5;     // ✗ Use of undeclared identifier 'y'
+int main() {
+    int x = 5;
+    
+    // Valid uses
+    if (x > 0) [[likely]] {
+        return 1;
+    }
+    
+    if (x < 0) [[unlikely]] {
+        return -1;
+    } 
+    else [[likely]]{
+        return 12;
+    }
+    
+    switch (x) {
+        case [[likely]] 1:
+            return 10;
+        case 2: [[unlikely]]
+            return 20;
+        default: [[unlikely]]
+            return 0;
+    }
+    
+    // Invalid uses
+    [[likely]] int y = 10;  // ERROR: likely on variable
+    
+    return 0;
 }
-
-int bar(int a, int a) {  // ✗ Duplicate parameter name 'a'
-    return a;
-}
-
-int baz() {
-    return baz;  // ✓ Functions are symbols too
-}
-
-int baz() {      // ✗ Redefinition of function 'baz'
-    return 1;
-}
-
-int baz();       // ✓ Forward declaration is OK
-int baz();       // ✓ Multiple declarations OK

@@ -6,6 +6,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <filesystem>
 
 int main(/*int argc, char* argv[]*/) {
     int argc = 2;
@@ -29,19 +30,24 @@ int main(/*int argc, char* argv[]*/) {
         auto ast = parser.parseProgram();
         
         dix::SemanticAnalyzer analyzer;
-        auto errors = analyzer.analyze(ast.get());
+        auto diagnostics = analyzer.analyze(ast.get());
         
-        if (!errors.empty()) {
-            for (const auto& err : errors) {
-                std::cerr << argv[1] << ":" << err.line << ":" << err.column 
-                          << ": error: " << err.message << "\n";
+        if (!diagnostics.empty()) {
+            bool has_errors = false;
+            for (const auto& diag : diagnostics) {
+                std::cerr << argv[1] << " :" << diag.line << ":" << diag.column << 
+                    (diag.kind == dix::DiagnosticKind::Warning ? " warning " : " error ") <<
+                    diag.message << std::endl;
+                if (diag.kind == dix::DiagnosticKind::Error) {
+                    has_errors = true;
+                }
             }
-            return 1;
+            if (has_errors) return 1;
         }
         
-        std::cout << "✓ No semantic errors!\n";
+        std::cout << "  No semantic errors!\n";
     } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << "\n";
+        std::cerr << "Compalation Error: " << e.what() << "\n";
         return 1;
     }
 }

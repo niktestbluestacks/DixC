@@ -1,5 +1,8 @@
-#include "Token.hpp"
+// dix
+#include "Ast.hpp"
 #include <Parser.hpp>
+
+// std
 #include <memory>
 
 namespace dix {
@@ -37,6 +40,24 @@ std::unique_ptr<Expr> Parser::parsePrimary() {
         auto node = std::make_unique<NumberExpr>();
         node->value = std::string(current.text);
         node->is_float = (current.type == TokenType::FloatLiteral);
+        node->line = current.line;
+        node->column = current.column;
+        return node;
+    }
+
+    if (current.type == TokenType::StringLiteral) {
+        stream.advance();
+        auto node = std::make_unique<StringExpr>();
+        node->value = std::string(current.text);
+        node->line = current.line;
+        node->column = current.column;
+        return node;
+    }
+
+    if (current.type == TokenType::CharLiteral) {
+        stream.advance();
+        auto node = std::make_unique<CharExpr>();
+        node->value = std::string(current.text);
         node->line = current.line;
         node->column = current.column;
         return node;
@@ -470,7 +491,6 @@ std::unique_ptr<Statement> Parser::parseStatement() {
     
     if (current.type == TokenType::DobleLBracket) {
         AttributeList attrs = parseAttributes();
-        stream.expect(TokenType::Semicolon, "Expected ';' after attribute statement");
         
         auto stmt = std::make_unique<AttributeStatement>();
         stmt->attributes = std::move(attrs);
@@ -495,6 +515,14 @@ std::unique_ptr<Statement> Parser::parseStatement() {
     
     if (current.type == TokenType::KW_for) {
         return parseForStatement();
+    }
+
+    if (current.type == TokenType::KW_switch) {
+        return parseSwitchStatement();
+    }
+
+    if (current.type == TokenType::KW_case || current.type == TokenType::KW_default) {
+        return parseCaseOrDefaultLabel();
     }
     
     if (current.type == TokenType::KW_break) {
@@ -582,19 +610,27 @@ std::unique_ptr<Statement> Parser::parseIfStatement() {
     stream.expect(TokenType::LParen, "Expected '(' after 'if'");
     auto condition = parseExpression();
     stream.expect(TokenType::RParen, "Expected ')' after if condition");
-    
+    AttributeList attrs = parseAttributes();
+
     auto thenBranch = parseStatement();
     
-    std::unique_ptr<Statement> elseBranch = nullptr;
+    std::unique_ptr<ElseStatement> elseBranch = nullptr;
     if (stream.current().type == TokenType::KW_else) {
+        Token elseStart = stream.current();
         stream.advance();
-        elseBranch = parseStatement();
+        auto body = parseStatement();
+
+        elseBranch = std::make_unique<ElseStatement>();
+        elseBranch->body = std::move(body);
+        elseBranch->line = elseStart.line;
+        elseBranch->column = elseStart.column;
     }
     
     auto stmt = std::make_unique<IfStatement>();
     stmt->condition = std::move(condition);
     stmt->thenBranch = std::move(thenBranch);
     stmt->elseBranch = std::move(elseBranch);
+    stmt->attributes = std::move(attrs);
     stmt->line = start.line;
     stmt->column = start.column;
     
@@ -658,6 +694,78 @@ std::unique_ptr<Statement> Parser::parseForStatement() {
     stmt->column = start.column;
     
     return stmt;
+}
+
+std::unique_ptr<Statement> Parser::parseSwitchStatement() {
+    Token start = stream.current();
+    stream.advance(); // consume 'switch'
+    
+    stream.expect(TokenType::LParen, "Expected '(' after 'switch'");
+    auto condition = parseExpression();
+    stream.expect(TokenType::RParen, "Expected ')' after switch condition");
+    
+    auto body = parseStatement();
+    
+    auto stmt = std::make_unique<SwitchStatement>();
+    stmt->condition = std::move(condition);
+    stmt->body = std::move(body);
+    stmt->line = start.line;
+    stmt->column = start.column;
+    
+    return stmt;
+}
+
+std::unique_ptr<Statement> Parser::parseCaseOrDefaultLabel() {
+    Token start = stream.current();
+    
+    if (start.type == TokenType::KW_case) {
+        stream.advance();
+        
+        AttributeList attrs = parseAttributes();
+
+        auto value = parseExpression();
+        stream.expect(TokenType::Colon, "Expected ':' after case value");
+        
+        std::unique_ptr<Statement> body = nullptr;
+        if (stream.current().type != TokenType::KW_case &&
+            stream.current().type != TokenType::KW_default &&
+            stream.current().type != TokenType::RBrace) {
+            body = parseStatement();
+        }
+        
+        auto stmt = std::make_unique<CaseStatement>();
+        stmt->value = std::move(value);
+        stmt->body = std::move(body);
+        stmt->attributes = std::move(attrs);
+        stmt->line = start.line;
+        stmt->column = start.column;
+        
+        return stmt;
+    }
+    else if (start.type == TokenType::KW_default) {
+        stream.advance(); // consume 'default'
+        
+        AttributeList attrs = parseAttributes();
+        
+        stream.expect(TokenType::Colon, "Expected ':' after 'default'");
+        
+        std::unique_ptr<Statement> body = nullptr;
+        if (stream.current().type != TokenType::KW_case &&
+            stream.current().type != TokenType::KW_default &&
+            stream.current().type != TokenType::RBrace) {
+            body = parseStatement();
+        }
+        
+        auto stmt = std::make_unique<DefaultStatement>();
+        stmt->body = std::move(body);
+        stmt->attributes = std::move(attrs);
+        stmt->line = start.line;
+        stmt->column = start.column;
+        
+        return stmt;
+    }
+    
+    return nullptr;
 }
 
 std::unique_ptr<Type> Parser::parseTypeSpecifier() {
@@ -824,6 +932,8 @@ Parameter Parser::parseParameter() {
 std::unique_ptr<Statement> Parser::parseDeclaration() {
     Token start = stream.current();
     
+    AttributeList attrs = parseAttributes();
+
     bool is_constexpr = false;
     if (stream.current().type == TokenType::KW_constexpr) {
         is_constexpr = true;
@@ -881,6 +991,7 @@ std::unique_ptr<Statement> Parser::parseDeclaration() {
     var->type = std::move(decl.type);
     var->name = decl.name;
     var->is_constexpr = is_constexpr;
+    var->attributes = std::move(attrs);
     var->line = start.line;
     var->column = start.column;
     
@@ -931,7 +1042,7 @@ AttributeList Parser::parseAttributes() {
                     }
                     stream.advance();
                 }
-                attr.arguments.push_back(arg_text);
+                attr.argument = arg_text;
             }
             
             attrs.push_back(std::move(attr));

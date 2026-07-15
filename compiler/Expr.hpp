@@ -10,10 +10,12 @@
 #include <vector>
 
 namespace dix {
+struct Type;
 struct Expr {
     virtual ~Expr() = default;
     int line;
     int column;
+    std::unique_ptr<Type> resolved_type;
 };
 
 struct NumberExpr : Expr {
@@ -49,6 +51,14 @@ struct ConditionalExpr : Expr {
 struct CallExpr : Expr {
     std::unique_ptr<Expr> callee;
     std::vector<std::unique_ptr<Expr>> arguments;
+};
+
+struct StringExpr : Expr {
+    std::string value; // with quotes
+};
+
+struct CharExpr : Expr {
+    std::string value; // with quotes
 };
 
 struct IndexExpr : Expr {
