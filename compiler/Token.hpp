@@ -2,72 +2,150 @@
 #define TOKEN_HPP
 
 // std
+#include <cstdint>
 #include <map>
 #include <string_view>
-#include <cstdint>
 
 namespace dix {
 
 enum class TokenType : std::uint8_t {
 
-    // ----------------------------- Special
-    EndOfFile,
-    Invalid,
+  // ----------------------------- Special
+  EndOfFile,
+  Invalid,
 
-    // ----------------------------- Literals
-    Identifier,
-    IntLiteral,
-    FloatLiteral,
-    CharLiteral,
-    StringLiteral,
+  // ----------------------------- Literals
+  Identifier,
+  IntLiteral,
+  FloatLiteral,
+  CharLiteral,
+  StringLiteral,
 
-    // ----------------------------- Types & Modifiers
-    KW_void, KW_bool, KW_char, KW_short, KW_int, KW_long,
-    KW_float, KW_double, KW_signed, KW_unsigned,
-    KW_typeof, KW_typeof_unqual, KW_constexpr, KW_true, KW_false, KW_nullptr,
+  // ----------------------------- Types & Modifiers
+  KW_void,
+  KW_bool,
+  KW_char,
+  KW_short,
+  KW_int,
+  KW_long,
+  KW_float,
+  KW_double,
+  KW_signed,
+  KW_unsigned,
+  KW_typeof,
+  KW_typeof_unqual,
+  KW_constexpr,
+  KW_true,
+  KW_false,
+  KW_nullptr,
 
-    // ----------------------------- Storage & Qualifiers
-    KW_auto, KW_register, KW_static, KW_extern, KW_thread_local,
-    KW_const, KW_volatile, KW_restrict, KW_inline,
-    KW_typedef, KW_struct, KW_union, KW_enum,
+  // ----------------------------- Storage & Qualifiers
+  KW_auto,
+  KW_register,
+  KW_static,
+  KW_extern,
+  KW_thread_local,
+  KW_const,
+  KW_volatile,
+  KW_restrict,
+  KW_inline,
+  KW_typedef,
+  KW_struct,
+  KW_union,
+  KW_enum,
 
-    // ----------------------------- Contorol Flow & Statements
-    KW_if, KW_else, KW_switch, KW_case, KW_default,
-    KW_while, KW_do, KW_for, 
-    KW_break, KW_continue, KW_return, KW_goto,
-    KW_static_assert,
+  // ----------------------------- Contorol Flow & Statements
+  KW_if,
+  KW_else,
+  KW_switch,
+  KW_case,
+  KW_default,
+  KW_while,
+  KW_do,
+  KW_for,
+  KW_break,
+  KW_continue,
+  KW_return,
+  KW_goto,
+  KW_static_assert,
 
-    // ----------------------------- Operators & Expressions
-    KW_sizeof, KW_alignof, KW_alignas,
+  // ----------------------------- Operators & Expressions
+  KW_sizeof,
+  KW_alignof,
+  KW_alignas,
 
-    // ----------------------------- Operators
-    Plus, Minus, Star, Slash, Percent,
-    Ampersand, Pipe, Caret, Tilde, Exclaim,
-    Less, Greater, Equal,
+  // ----------------------------- Operators
+  Plus,
+  Minus,
+  Star,
+  Slash,
+  Percent,
+  Ampersand,
+  Pipe,
+  Caret,
+  Tilde,
+  Exclaim,
+  Less,
+  Greater,
+  Equal,
 
-    // ----------------------------- Multi-charecter operators
-    PlusPlus, MinusMinus,
-    LShift, RShift,
-    PlusEqual, MinusEqual, StarEqual, SlashEqual, PercentEqual,
-    AmpEqual, PipeEqual, CaretEqual, LShiftEqual, RShiftEqual,
-    EqualEqual, ExclaimEqual, LessEqual, GreaterEqual,
-    AmpAmp, PipePipe,
-    Arrow, Dot, Question, Colon, Ellipsis,
+  // ----------------------------- Multi-charecter operators
+  PlusPlus,
+  MinusMinus,
+  LShift,
+  RShift,
+  PlusEqual,
+  MinusEqual,
+  StarEqual,
+  SlashEqual,
+  PercentEqual,
+  AmpEqual,
+  PipeEqual,
+  CaretEqual,
+  LShiftEqual,
+  RShiftEqual,
+  EqualEqual,
+  ExclaimEqual,
+  LessEqual,
+  GreaterEqual,
+  AmpAmp,
+  PipePipe,
+  Arrow,
+  Dot,
+  Question,
+  Colon,
+  Ellipsis,
 
-    // ----------------------------- Punctiation
-    LParen, RParen,       // ( )
-    LBrace, RBrace,       // { }
-    LBracket, RBracket,   // [ ]
-    DobleLBracket,        // [[
-    DobleRBracket,        // ]]
-    Semicolon, Comma,     // ; ,
-    Hash,                  // # (for preprocessor)
+  // ----------------------------- Punctiation
+  LParen,
+  RParen,  // ( )
+  LBrace,
+  RBrace,  // { }
+  LBracket,
+  RBracket,       // [ ]
+  DobleLBracket,  // [[
+  DobleRBracket,  // ]]
+  Semicolon,
+  Comma,  // ; ,
+  Hash,   // # (for preprocessor)
 
-    // ----------------------------- Preprocessor
-    PP_include, PP_define, PP_undef,
-    PP_if, PP_ifdef, PP_ifndef, PP_elif, PP_else, PP_endif,
-    PP_line, PP_error, PP_warning, PP_pragma,
-    PP_embed, PP_HashHash, PP_Stringify
+  // ----------------------------- Preprocessor
+  PP_include,
+  PP_define,
+  PP_undef,
+  PP_if,
+  PP_ifdef,
+  PP_ifndef,
+  PP_elif,
+  PP_else,
+  PP_endif,
+  PP_line,
+  PP_error,
+  PP_warning,
+  PP_pragma,
+  PP_embed,
+  PP_HashHash,
+  PP_Stringify
 };
 
 inline static std::map<std::string_view, TokenType> Keywords = {
@@ -115,11 +193,9 @@ inline static std::map<std::string_view, TokenType> Keywords = {
     {"static_assert", TokenType::KW_static_assert},
     {"sizeof", TokenType::KW_sizeof},
     {"alignof", TokenType::KW_alignof},
-    {"alignas", TokenType::KW_alignas}
-};
+    {"alignas", TokenType::KW_alignas}};
 
-inline static std::map<std::string_view, TokenType>
-                            SpecialSymbols = {
+inline static std::map<std::string_view, TokenType> SpecialSymbols = {
     {"+", TokenType::Plus},
     {"-", TokenType::Minus},
     {"*", TokenType::Star},
@@ -169,35 +245,26 @@ inline static std::map<std::string_view, TokenType>
     {";", TokenType::Semicolon},
     {",", TokenType::Comma},
     {"#", TokenType::Hash},
-    {"##", TokenType::PP_HashHash}
-};
+    {"##", TokenType::PP_HashHash}};
 
-inline static std::map<std::string_view, TokenType> 
-                                            Preprocessor = {
-    {"include", TokenType::PP_include},
-    {"define", TokenType::PP_define},
-    {"undef", TokenType::PP_undef},
-    {"if", TokenType::PP_if},
-    {"ifdef", TokenType::PP_ifdef},
-    {"ifndef", TokenType::PP_ifndef},
-    {"elif", TokenType::PP_elif},
-    {"else", TokenType::PP_else},
-    {"endif", TokenType::PP_endif},
-    {"line", TokenType::PP_line},
-    {"error", TokenType::PP_error},
-    {"warning", TokenType::PP_warning},
-    {"pragma", TokenType::PP_pragma},
-    {"embed", TokenType::PP_embed},
+inline static std::map<std::string_view, TokenType> Preprocessor = {
+    {"include", TokenType::PP_include}, {"define", TokenType::PP_define},
+    {"undef", TokenType::PP_undef},     {"if", TokenType::PP_if},
+    {"ifdef", TokenType::PP_ifdef},     {"ifndef", TokenType::PP_ifndef},
+    {"elif", TokenType::PP_elif},       {"else", TokenType::PP_else},
+    {"endif", TokenType::PP_endif},     {"line", TokenType::PP_line},
+    {"error", TokenType::PP_error},     {"warning", TokenType::PP_warning},
+    {"pragma", TokenType::PP_pragma},   {"embed", TokenType::PP_embed},
     // {"##", TokenType::PP_HashHash},
     // {"#", TokenType::PP_Stringify}
 };
 
 struct Token {
-    TokenType type;
-    std::string_view text;
-    int line;
-    int column;
+  TokenType type;
+  std::string_view text;
+  int line;
+  int column;
 };
-}   // namespace dix
+}  // namespace dix
 
-#endif // TOKEN_HPP
+#endif  // TOKEN_HPP
