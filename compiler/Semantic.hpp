@@ -26,12 +26,12 @@ enum class SymbolKind {
 struct Symbol {
     std::string name;
     SymbolKind kind;
-    std::unique_ptr<Type> type;
+    const Type* type;
     int line;
     int column;
 
     bool is_defined = false;
-    std::vector<std::unique_ptr<Type>> param_types;
+    std::vector<const Type*> param_types;
     bool is_initialized = false;
     bool is_constexpr = false;
     AttributeList attributes;

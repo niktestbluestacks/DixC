@@ -11,70 +11,84 @@
 
 namespace dix {
 struct Type;
+class SemanticAnalyzer;
 struct Expr {
     virtual ~Expr() = default;
     int line;
     int column;
     std::unique_ptr<Type> resolved_type;
+    virtual void accept(SemanticAnalyzer& visitor) = 0;
 };
 
-struct NumberExpr : Expr {
+struct NumberExpr final : Expr {
     std::string value;
     bool is_float;
+    void accept(SemanticAnalyzer& visitor) override;
 };
 
-struct IdentifierExpr : Expr {
+struct IdentifierExpr final : Expr {
     std::string name;
+    void accept(SemanticAnalyzer& visitor) override;
 };
 
-struct BinaryExpr : Expr {
+struct BinaryExpr final : Expr {
     std::unique_ptr<Expr> left;
     std::unique_ptr<Expr> right;
     TokenType op;
+    void accept(SemanticAnalyzer& visitor) override;
 };
 
-struct UnaryExpr : Expr {
+struct UnaryExpr final : Expr {
     std::unique_ptr<Expr> operand;
     TokenType op;
+    void accept(SemanticAnalyzer& visitor) override;
 };
 
-struct ParenExpr : Expr {
+struct ParenExpr final : Expr {
     std::unique_ptr<Expr> inner;
+    void accept(SemanticAnalyzer& visitor) override;
 };
 
-struct ConditionalExpr : Expr {
+struct ConditionalExpr final : Expr {
     std::unique_ptr<Expr> condition;
     std::unique_ptr<Expr> trueExpr;
     std::unique_ptr<Expr> falseExpr;
+    void accept(SemanticAnalyzer& visitor) override;
 };
 
-struct CallExpr : Expr {
+struct CallExpr final : Expr {
     std::unique_ptr<Expr> callee;
     std::vector<std::unique_ptr<Expr>> arguments;
+    void accept(SemanticAnalyzer& visitor) override;
 };
 
-struct StringExpr : Expr {
+struct StringExpr final : Expr {
     std::string value; // with quotes
+    void accept(SemanticAnalyzer& visitor) override;
 };
 
-struct CharExpr : Expr {
+struct CharExpr final : Expr {
     std::string value; // with quotes
+    void accept(SemanticAnalyzer& visitor) override;
 };
 
-struct IndexExpr : Expr {
+struct IndexExpr final : Expr {
     std::unique_ptr<Expr> array;
     std::unique_ptr<Expr> index;
+    void accept(SemanticAnalyzer& visitor) override;
 };
 
-struct MemberExpr : Expr {
+struct MemberExpr final : Expr {
     std::unique_ptr<Expr> object;
     std::string member;
     bool is_arrow;
+    void accept(SemanticAnalyzer& visitor) override;
 };
 
-struct PostfixExpr : Expr {
+struct PostfixExpr final : Expr {
     std::unique_ptr<Expr> operand;
     TokenType op;
+    void accept(SemanticAnalyzer& visitor) override;
 };
 }   // namespace dix
 

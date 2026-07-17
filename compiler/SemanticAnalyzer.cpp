@@ -15,10 +15,9 @@ const std::set<std::string> SemanticAnalyzer::ValidAttributes = {
 
 std::vector<Diagnostic> SemanticAnalyzer::analyze(Statement* program) {
     diagnostics.clear();
-    current_scope = &global_scope;
-    
-    visitStatement(program);
-    
+    if (program) {
+        program->accept(*this);
+    }
     return diagnostics;
 }
 
@@ -97,7 +96,30 @@ void SemanticAnalyzer::validateAttributes(const AttributeList& attrs,
     }
 }
 
-void SemanticAnalyzer::visitStatement(Statement* stmt) {
+void SemanticAnalyzer::visit(VarDeclaration* stmt) {
+    validateAttributes(stmt->attributes, stmt->line, stmt->column, "variable '" + stmt->name + "'");
+
+    auto symbol = std::make_unique<Symbol>();
+    symbol->name = stmt->name;
+    symbol->kind = SymbolKind::Variable;
+    symbol->type = stmt->type.get();
+    symbol->line = stmt->line;
+    symbol->column = stmt->column;
+    symbol->is_initialized = (stmt->initializer != nullptr);
+    symbol->is_constexpr = stmt->is_constexpr;
+    symbol->attributes = stmt->attributes;
+
+    if (!current_scope->define(std::move(symbol))) {
+        error(stmt->line, stmt->column, "Redefinition of '" + stmt->name + "'");
+    }
+
+    if (stmt->initializer) {
+        stmt->initializer->accept(*this);
+        // TODO: Add type compatibility check here using raw pointers
+    }
+}
+
+[[deprecated("Unused")]] void SemanticAnalyzer::visitStatement(Statement* stmt) {
     if (!stmt) return;
     
     if (auto* block = dynamic_cast<BlockStatement*>(stmt)) {

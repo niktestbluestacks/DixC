@@ -9,44 +9,55 @@
 #include <memory>
 
 namespace dix {
-
+class SemanticAnalyzer;
 struct Statement {
     virtual ~Statement() = default;
     int line;
     int column;
+    virtual void accept(SemanticAnalyzer& visitor) = 0;
 };
 
-struct ExpressionStatement : Statement {
+struct ExpressionStatement final :Statement {
     std::unique_ptr<Expr> expr;
+    void accept(SemanticAnalyzer& visitor) override;
 };
 
-struct BlockStatement : Statement {
+struct BlockStatement final :Statement {
     std::vector<std::unique_ptr<Statement>> statements;
+    void accept(SemanticAnalyzer& visitor) override;
 };
 
-struct ReturnStatement : Statement {
+struct ReturnStatement final :Statement {
     std::unique_ptr<Expr> expr;
+    void accept(SemanticAnalyzer& visitor) override;
 };
 
-struct WhileStatement : Statement {
+struct WhileStatement final :Statement {
     std::unique_ptr<Expr> condition;
     std::unique_ptr<Statement> body;
+    void accept(SemanticAnalyzer& visitor) override;
 };
 
-struct ForStatement : Statement {
+struct ForStatement final :Statement {
     std::unique_ptr<Statement> init;
     std::unique_ptr<Expr> condition;
     std::unique_ptr<Expr> increment;
     std::unique_ptr<Statement> body;
+    void accept(SemanticAnalyzer& visitor) override;
 };
 
-struct BreakStatement : Statement {};
+struct BreakStatement final :Statement {
+    void accept(SemanticAnalyzer& visitor) override;
+};
 
-struct ContinueStatement : Statement {};
+struct ContinueStatement final :Statement {
+    void accept(SemanticAnalyzer& visitor) override;
+};
 
-struct SwitchStatement : Statement {
+struct SwitchStatement final :Statement {
     std::unique_ptr<Expr> condition;
     std::unique_ptr<Statement> body;
+    void accept(SemanticAnalyzer& visitor) override;
 };
 
 struct Attribute {
@@ -56,32 +67,37 @@ struct Attribute {
 
 using AttributeList = std::vector<Attribute>;
 
-struct ElseStatement : Statement {
+struct ElseStatement final :Statement {
     std::unique_ptr<Statement> body;
     AttributeList attributes;
+    void accept(SemanticAnalyzer& visitor) override;
 };
 
-struct IfStatement : Statement {
+struct IfStatement final :Statement {
     std::unique_ptr<Expr> condition;
     std::unique_ptr<Statement> thenBranch;
     std::unique_ptr<ElseStatement> elseBranch;
     AttributeList attributes;
+    void accept(SemanticAnalyzer& visitor) override;
 };
 
 
-struct CaseStatement : Statement {
+struct CaseStatement final :Statement {
     std::unique_ptr<Expr> value;
     std::unique_ptr<Statement> body;
     AttributeList attributes;
+    void accept(SemanticAnalyzer& visitor) override;
 };
 
-struct DefaultStatement : Statement {
+struct DefaultStatement final :Statement {
     std::unique_ptr<Statement> body;
     AttributeList attributes;
+    void accept(SemanticAnalyzer& visitor) override;
 };
 
-struct AttributeStatement : Statement {
+struct AttributeStatement final :Statement {
     AttributeList attributes;
+    void accept(SemanticAnalyzer& visitor) override;
 };
 
 struct Type {
@@ -90,7 +106,7 @@ struct Type {
     int column;
 };
 
-struct BasicType : Type {
+struct BasicType final :Type {
     enum class Kind { Void, Bool, Char, Short, Int, Long, Float, Double };
     Kind kind;
     bool is_unsigned = false;
@@ -99,19 +115,19 @@ struct BasicType : Type {
     bool is_restrict = false;
 };
 
-struct PointerType : Type {
+struct PointerType final :Type {
     std::unique_ptr<Type> base_type;
     bool is_const = false;
     bool is_volatile = false;
     bool is_restrict = false;
 };
 
-struct ArrayType : Type {
+struct ArrayType final :Type {
     std::unique_ptr<Type> element_type;
     std::unique_ptr<Expr> size;
 };
 
-struct FunctionType : Type {
+struct FunctionType final :Type {
     std::unique_ptr<Type> return_type;
     std::vector<std::unique_ptr<Type>> param_types;
     std::vector<std::string> param_names;
@@ -124,7 +140,7 @@ struct EnumDecl;
 struct StructMember;
 struct EnumConstant;
 
-struct StructType : Type {
+struct StructType final :Type {
     std::string name;
     std::vector<StructMember> members;
     bool is_union = false;
@@ -132,13 +148,13 @@ struct StructType : Type {
     int alignment = 0;
 };
 
-struct EnumType : Type {
+struct EnumType final :Type {
     std::string name;
     std::vector<EnumConstant> constants;
     bool is_complete = false;
 };
 
-struct TypedefType : Type {
+struct TypedefType final :Type {
     std::string name;
     std::unique_ptr<Type> underlying_type;
 };
@@ -151,11 +167,12 @@ struct StructMember {
     int column;
 };
 
-struct StructDecl : Statement {
+struct StructDecl final :Statement {
     std::string name;
     std::vector<StructMember> members;
     bool is_union = false;
     AttributeList attributes;
+    void accept(SemanticAnalyzer& visitor) override;
 };
 
 struct EnumConstant {
@@ -165,16 +182,18 @@ struct EnumConstant {
     int column;
 };
 
-struct EnumDecl : Statement {
+struct EnumDecl final :Statement {
     std::string name;
     std::vector<EnumConstant> constants;
     AttributeList attributes;
+    void accept(SemanticAnalyzer& visitor) override;
 };
 
-struct TypedefDecl : Statement {
+struct TypedefDecl final :Statement {
     std::string name;
     std::unique_ptr<Type> underlying_type;
     AttributeList attributes;
+    void accept(SemanticAnalyzer& visitor) override;
 };
 
 struct Declarator {
@@ -182,12 +201,13 @@ struct Declarator {
     std::unique_ptr<Type> type;
 };
 
-struct VarDeclaration : Statement {
+struct VarDeclaration final :Statement {
     std::unique_ptr<Type> type;
     std::string name;
     std::unique_ptr<Expr> initializer;
     bool is_constexpr = false;
     AttributeList attributes;
+    void accept(SemanticAnalyzer& visitor) override;
 };
 
 struct Parameter {
@@ -195,13 +215,14 @@ struct Parameter {
     std::string name;
 };
 
-struct FuncDeclaration : Statement {
+struct FuncDeclaration final :Statement {
     std::unique_ptr<Type> return_type;
     std::string name;
     std::vector<Parameter> parameters;
     bool is_variadic = false;
     std::unique_ptr<Statement> body;
     AttributeList attributes;
+    void accept(SemanticAnalyzer& visitor) override;
 };
 
 inline std::unique_ptr<Type> cloneType(const Type* type) {
