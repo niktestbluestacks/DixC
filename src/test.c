@@ -1,29 +1,42 @@
+// Forward declaration
+struct Point;
+
+// Struct definition
+struct Point {
+    int x;
+    int y;
+};
+
+// Union
+union Data {
+    int i;
+    float f;
+    char c;
+};
+
+// Enum
+enum Color {
+    RED,
+    GREEN = 5,
+    BLUE
+};
+
+// Typedef
+typedef int MyInt;
+typedef struct Point Point;
+
 int main() {
-    int x = 5;
+    struct Point p;
+    p.x = 10;
+    p.y = 20;
     
-    // Valid uses
-    if (x > 0) [[likely]] {
-        return 1;
-    }
+    union Data d;
+    d.i = 42;
     
-    if (x < 0) [[unlikely]] {
-        return -1;
-    } 
-    else [[likely]]{
-        return 12;
-    }
+    enum Color c = RED;
+    c = GREEN;
     
-    switch (x) {
-        case [[likely]] 1:
-            return 10;
-        case 2: [[unlikely]]
-            return 20;
-        default: [[unlikely]]
-            return 0;
-    }
+    MyInt x = 100;
     
-    // Invalid uses
-    [[likely]] int y = 10;  // ERROR: likely on variable
-    
-    return 0;
+    return p.x + p.y + d.i + c + x;
 }

@@ -1,5 +1,6 @@
 // dix
 #include "Ast.hpp"
+#include "Token.hpp"
 #include <Parser.hpp>
 
 // std
@@ -551,6 +552,14 @@ std::unique_ptr<Statement> Parser::parseStatement() {
         stmt->column = current.column;
         return stmt;
     }
+
+    if (current.type == TokenType::KW_struct ||
+        current.type == TokenType::KW_union ||
+        current.type == TokenType::KW_enum ||
+        current.type == TokenType::KW_typedef ||
+        isTypeSpecifier()) {
+        return parseDeclaration();
+    }
     
     return parseExpressionStatement();
 }
@@ -768,8 +777,228 @@ std::unique_ptr<Statement> Parser::parseCaseOrDefaultLabel() {
     return nullptr;
 }
 
+StructMember Parser::parseStructMember() {
+    Token start = stream.current();
+
+    auto type = parseTypeSpecifier();
+
+    Declarator decl = parseDeclarator(std::move(type));
+    
+    StructMember member;
+    member.name = decl.name;
+    member.type = std::move(decl.type);
+    member.line = start.line;
+    member.column = start.column;
+
+    if (stream.current().type == TokenType::Colon) {
+        stream.advance(); // consume ':'
+        auto width_expr = parseExpression();
+
+        if (auto* num = dynamic_cast<NumberExpr*>(width_expr.get())) {
+            member.bitfield_width = std::stoi(std::string(num->value));
+        }
+    }
+    
+    stream.expect(TokenType::Semicolon, "Expected ';' after struct member");
+    
+    return member;
+}
+
+std::unique_ptr<Statement> Parser::parseTypedefDeclaration(AttributeList attrs) {
+    Token start = stream.current();
+    stream.advance();
+
+    auto base_type = parseTypeSpecifier();
+
+    Declarator decl = parseDeclarator(std::move(base_type));
+    
+    typedef_names.insert(decl.name);
+
+    auto typedef_decl = std::make_unique<TypedefDecl>();
+    typedef_decl->name = decl.name;
+    typedef_decl->underlying_type = std::move(decl.type);
+    typedef_decl->attributes = std::move(attrs);
+    typedef_decl->line = start.line;
+    typedef_decl->column = start.column;
+    
+    stream.expect(TokenType::Semicolon, "Expected ';' after typedef");
+    
+    return typedef_decl;
+}
+
+std::unique_ptr<Statement> Parser::parseStructUnionEnumDeclaration(
+    AttributeList attrs, bool is_constexpr) {
+    
+    Token start = stream.current();
+    
+    if (stream.current().type == TokenType::KW_struct ||
+        stream.current().type == TokenType::KW_union) {
+        
+        bool is_union = (stream.current().type == TokenType::KW_union);
+        stream.advance();
+
+        std::string name;
+        if (stream.current().type == TokenType::Identifier) {
+            name = std::string(stream.current().text);
+            stream.advance();
+        }
+        
+        auto decl = std::make_unique<StructDecl>();
+        decl->name = name;
+        decl->is_union = is_union;
+        decl->attributes = std::move(attrs);
+        decl->line = start.line;
+        decl->column = start.column;
+
+        if (stream.current().type == TokenType::LBrace) {
+            stream.advance();
+            
+            while (stream.current().type != TokenType::RBrace && !stream.isAtEnd()) {
+                decl->members.push_back(parseStructMember());
+            }
+            
+            stream.expect(TokenType::RBrace, "Expected '}' to end struct/union");
+        }
+
+        if (stream.current().type == TokenType::Identifier) {
+            std::string var_name = std::string(stream.current().text);
+            stream.advance();
+            
+            auto var = std::make_unique<VarDeclaration>();
+            auto struct_type = std::make_unique<StructType>();
+            struct_type->name = decl->name;
+            struct_type->is_union = decl->is_union;
+            struct_type->members = std::move(decl->members);
+            
+            var->type = std::move(struct_type);
+            var->name = var_name;
+            var->is_constexpr = is_constexpr;
+            var->line = start.line;
+            var->column = start.column;
+            
+            if (stream.current().type == TokenType::Equal) {
+                stream.advance();
+                var->initializer = parseExpression();
+            }
+            
+            stream.expect(TokenType::Semicolon, "Expected ';' after variable declaration");
+            return var;
+        }
+        
+        stream.expect(TokenType::Semicolon, "Expected ';' after struct/union declaration");
+        return decl;
+    }
+    
+    // Handle enum
+    if (stream.current().type == TokenType::KW_enum) {
+        stream.advance();
+        
+        std::string name;
+        if (stream.current().type == TokenType::Identifier) {
+            name = std::string(stream.current().text);
+            stream.advance();
+        }
+        
+        auto decl = std::make_unique<EnumDecl>();
+        decl->name = name;
+        decl->attributes = std::move(attrs);
+        decl->line = start.line;
+        decl->column = start.column;
+        
+        if (stream.current().type == TokenType::LBrace) {
+            stream.advance();
+            
+            while (stream.current().type != TokenType::RBrace && !stream.isAtEnd()) {
+                decl->constants.push_back(parseEnumConstant());
+                
+                if (stream.current().type == TokenType::Comma) {
+                    stream.advance();
+                } else {
+                    break;
+                }
+            }
+            
+            stream.expect(TokenType::RBrace, "Expected '}' to end enum");
+        }
+        
+        if (stream.current().type == TokenType::Identifier) {
+            std::string var_name = std::string(stream.current().text);
+            stream.advance();
+            
+            auto var = std::make_unique<VarDeclaration>();
+            auto enum_type = std::make_unique<EnumType>();
+            enum_type->name = decl->name;
+            enum_type->constants = std::move(decl->constants);
+            
+            var->type = std::move(enum_type);
+            var->name = var_name;
+            var->is_constexpr = is_constexpr;
+            var->line = start.line;
+            var->column = start.column;
+            
+            if (stream.current().type == TokenType::Equal) {
+                stream.advance();
+                var->initializer = parseExpression();
+            }
+            
+            stream.expect(TokenType::Semicolon, "Expected ';' after variable declaration");
+            return var;
+        }
+        
+        stream.expect(TokenType::Semicolon, "Expected ';' after enum declaration");
+        return decl;
+    }
+    
+    return nullptr;
+}
+
 std::unique_ptr<Type> Parser::parseTypeSpecifier() {
     Token start = stream.current();
+    if (stream.current().type == TokenType::KW_struct ||
+           stream.current().type == TokenType::KW_union) {
+        bool is_union = (stream.current().type == TokenType::KW_union);
+        stream.advance();
+
+        auto struct_type = std::make_unique<StructType>();
+        struct_type->is_union = is_union;
+        struct_type->line = start.line;
+        struct_type->column = start.column;
+        
+        if (stream.current().type == TokenType::Identifier) {
+            struct_type->name = std::string(stream.current().text);
+            stream.advance();
+        }
+        
+        return struct_type;
+    }
+
+    if (stream.current().type == TokenType::KW_enum) {
+        stream.advance();
+        
+        auto enum_type = std::make_unique<EnumType>();
+        enum_type->line = start.line;
+        enum_type->column = start.column;
+        
+        if (stream.current().type == TokenType::Identifier) {
+            enum_type->name = std::string(stream.current().text);
+            stream.advance();
+        }
+        
+        return enum_type;
+    }
+
+    if (stream.current().type == TokenType::Identifier) {
+        std::string name(stream.current().text);
+        if (typedef_names.find(name) != typedef_names.end()) {
+            stream.advance();
+            auto typedef_type = std::make_unique<TypedefType>();
+            typedef_type->name = name;
+            typedef_type->line = start.line;
+            typedef_type->column = start.column;
+            return typedef_type;
+        }
+    }
+
     auto type = std::make_unique<BasicType>();
     type->line = start.line;
     type->column = start.column;
@@ -928,10 +1157,9 @@ Parameter Parser::parseParameter() {
     
     return param;
 }
-
 std::unique_ptr<Statement> Parser::parseDeclaration() {
     Token start = stream.current();
-    
+
     AttributeList attrs = parseAttributes();
 
     bool is_constexpr = false;
@@ -939,11 +1167,21 @@ std::unique_ptr<Statement> Parser::parseDeclaration() {
         is_constexpr = true;
         stream.advance();
     }
-    
+
+    if (stream.current().type == TokenType::KW_typedef) {
+        return parseTypedefDeclaration(std::move(attrs));
+    }
+
+    if (stream.current().type == TokenType::KW_struct ||
+        stream.current().type == TokenType::KW_union ||
+        stream.current().type == TokenType::KW_enum) {
+        return parseStructUnionEnumDeclaration(std::move(attrs), is_constexpr);
+    }
+
     auto base_type = parseTypeSpecifier();
-    
+
     Declarator decl = parseDeclarator(std::move(base_type));
-    
+
     if (stream.current().type == TokenType::LParen) {
         stream.advance();
         
@@ -974,19 +1212,21 @@ std::unique_ptr<Statement> Parser::parseDeclaration() {
             }
         }
         
-        stream.expect(TokenType::RParen, "Expected ')' after parameters");
+        stream.expect(TokenType::RParen, 
+            "Expected ')' after parameters");
         
         func->attributes = parseAttributes();
         
         if (stream.current().type == TokenType::LBrace) {
             func->body = parseBlockStatement();
         } else {
-            stream.expect(TokenType::Semicolon, "Expected ';' or '{' after function declaration");
+            stream.expect(TokenType::Semicolon, 
+                "Expected ';' or '{' after function declaration");
         }
         
         return func;
     }
-    
+
     auto var = std::make_unique<VarDeclaration>();
     var->type = std::move(decl.type);
     var->name = decl.name;
@@ -1000,10 +1240,12 @@ std::unique_ptr<Statement> Parser::parseDeclaration() {
         var->initializer = parseExpression();
     }
     
-    stream.expect(TokenType::Semicolon, "Expected ';' after variable declaration");
+    stream.expect(TokenType::Semicolon, 
+        "Expected ';' after variable declaration");
     
     return var;
 }
+
 AttributeList Parser::parseAttributes() {
     AttributeList attrs;
     
@@ -1068,18 +1310,57 @@ AttributeList Parser::parseAttributes() {
 
 bool Parser::isTypeSpecifier() {
     TokenType type = stream.current().type;
-    return type == TokenType::KW_void ||
-           type == TokenType::KW_bool ||
-           type == TokenType::KW_char ||
-           type == TokenType::KW_short ||
-           type == TokenType::KW_int ||
-           type == TokenType::KW_long ||
-           type == TokenType::KW_float ||
-           type == TokenType::KW_double ||
-           type == TokenType::KW_signed ||
-           type == TokenType::KW_unsigned ||
-           type == TokenType::KW_const ||
-           type == TokenType::KW_volatile ||
-           type == TokenType::KW_constexpr;
+    if (type == TokenType::KW_void ||
+            type == TokenType::KW_bool ||
+            type == TokenType::KW_char ||
+            type == TokenType::KW_short ||
+            type == TokenType::KW_int ||
+            type == TokenType::KW_long ||
+            type == TokenType::KW_float ||
+            type == TokenType::KW_double ||
+            type == TokenType::KW_signed ||
+            type == TokenType::KW_unsigned ||
+            type == TokenType::KW_const ||
+            type == TokenType::KW_volatile ||
+            type == TokenType::KW_restrict ||
+            type == TokenType::KW_constexpr ||
+            type == TokenType::KW_struct ||
+            type == TokenType::KW_union ||
+            type == TokenType::KW_enum) {
+        return true;
+    }
+    if (type == TokenType::Identifier) {
+        std::string name(stream.current().text);
+        if (typedef_names.find(name) != typedef_names.end()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+EnumConstant Parser::parseEnumConstant() {
+    Token start = stream.current();
+
+    if (stream.current().type != TokenType::Identifier) {
+        throw std::runtime_error(
+            "Expected identifier for enum constant at line " + 
+            std::to_string(stream.current().line) + ", column " +
+            std::to_string(stream.current().column) + 
+            " (got '" + std::string(stream.current().text) + "')"
+        );
+    }
+    
+    EnumConstant constant;
+    constant.name = std::string(stream.current().text);
+    constant.line = start.line;
+    constant.column = start.column;
+    stream.advance();
+
+    if (stream.current().type == TokenType::Equal) {
+        stream.advance();
+        constant.value = parseExpression();
+    }
+    
+    return constant;
 }
 }   // namespace dix

@@ -9,11 +9,14 @@
 // std
 #include <memory>
 #include <string_view>
+#include <set>
 
 namespace dix {
 class Parser {
 private:
     TokenStream stream;
+    std::set<std::string> typedef_names;    // Track typedef names
+    std::set<std::string> enum_names;
 
     // Expressions
     std::unique_ptr<Expr> parseAssignment(); // = += -= *= /= %= &= |= ^= <<= >>=
@@ -43,7 +46,12 @@ private:
     std::unique_ptr<Statement> parseForStatement();
     std::unique_ptr<Statement> parseSwitchStatement();
     std::unique_ptr<Statement> parseCaseOrDefaultLabel();
+    std::unique_ptr<Statement> parseStructUnionEnumDeclaration(AttributeList attrs, bool is_constexpr);
+    std::unique_ptr<Statement> parseTypedefDeclaration(AttributeList attrs);
 
+    StructMember parseStructMember();
+    EnumConstant parseEnumConstant();
+    
     // Declarations
     std::unique_ptr<Type> parseTypeSpecifier();
     Declarator parseDeclarator(std::unique_ptr<Type> base_type);
@@ -55,6 +63,7 @@ private:
 
     // Helpers
     bool isTypeSpecifier();
+    bool isStructUnionEnumOrTypedef();
 public:
     Parser(std::string_view source): stream{source} {}
     std::unique_ptr<Expr> parseExpression() {

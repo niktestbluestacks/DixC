@@ -16,7 +16,10 @@ enum class SymbolKind {
     Function,
     Parameter,
     Typedef,
-    EnumConstant
+    EnumConstant,
+    Struct,
+    Union,
+    Enum
 };
 
 
@@ -31,11 +34,14 @@ struct Symbol {
     std::vector<std::unique_ptr<Type>> param_types;
     bool is_initialized = false;
     bool is_constexpr = false;
-
     AttributeList attributes;
-
     bool is_used = false;
     int scope_depth = 0;
+
+    std::vector<StructMember> members;
+    int size = 0;
+    int alignment = 0;
+    std::vector<std::pair<std::string, int>> enum_constants;
 
     bool hasAttribute(const std::string& name) const {
         for (const auto& attr : attributes) {

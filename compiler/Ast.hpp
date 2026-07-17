@@ -118,6 +118,65 @@ struct FunctionType : Type {
     bool is_variadic = false;
 };
 
+struct StructDecl;
+struct UnionDecl;
+struct EnumDecl;
+struct StructMember;
+struct EnumConstant;
+
+struct StructType : Type {
+    std::string name;
+    std::vector<StructMember> members;
+    bool is_union = false;
+    int size = 0;
+    int alignment = 0;
+};
+
+struct EnumType : Type {
+    std::string name;
+    std::vector<EnumConstant> constants;
+    bool is_complete = false;
+};
+
+struct TypedefType : Type {
+    std::string name;
+    std::unique_ptr<Type> underlying_type;
+};
+
+struct StructMember {
+    std::string name;
+    std::unique_ptr<Type> type;
+    int bitfield_width = 0;
+    int line;
+    int column;
+};
+
+struct StructDecl : Statement {
+    std::string name;
+    std::vector<StructMember> members;
+    bool is_union = false;
+    AttributeList attributes;
+};
+
+struct EnumConstant {
+    std::string name;
+    std::unique_ptr<Expr> value;
+    int line;
+    int column;
+};
+
+struct EnumDecl : Statement {
+    std::string name;
+    std::vector<EnumConstant> constants;
+    AttributeList attributes;
+};
+
+struct TypedefDecl : Statement {
+    std::string name;
+    std::unique_ptr<Type> underlying_type;
+    AttributeList attributes;
+};
+
 struct Declarator {
     std::string name;
     std::unique_ptr<Type> type;
